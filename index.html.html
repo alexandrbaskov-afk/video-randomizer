@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Video Randomizer</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #1e1e2e);
+            color: var(--tg-theme-text-color, #e4e4e7);
+            padding: 12px;
+            padding-bottom: 80px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 16px 0;
+            margin-bottom: 16px;
+            background: var(--tg-theme-secondary-bg-color, rgba(55, 65, 81, 0.5));
+            border-radius: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--tg-theme-hint-color, #9ca3af);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: var(--tg-theme-button-color, #8b5cf6);
+            color: var(--tg-theme-button-text-color, white);
+        }
+
+        .btn-secondary {
+            background: var(--tg-theme-secondary-bg-color, #374151);
+            color: var(--tg-theme-text-color, #e4e4e7);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            opacity: 0.8;
+        }
+
+        .categories {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .category-card {
+            background: var(--tg-theme-secondary-bg-color, rgba(55, 65, 81, 0.5));
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .category-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--tg-theme-link-color, #06b6d4);
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            min-width: 36px;
+        }
+
+        .generated-value {
+            background: var(--tg-theme-bg-color, rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .custom-items {
+            margin-top: 8px;
+        }
+
+        .custom-items-title {
+            font-size: 0.8rem;
+            color: var(--tg-theme-hint-color, #9ca3af);
+            margin-bottom: 6px;
+        }
+
+        .custom-item {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .custom-item-remove {
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .output-section {
+            background: var(--tg-theme-secondary-bg-color, rgba(55, 65, 81, 0.5));
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 16px;
+        }
+
+        .output-title {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--tg-theme-link-color, #06b6d4);
+        }
+
+        .prompt-output {
+            background: var(--tg-theme-bg-color, rgba(0, 0, 0, 0.3));
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 80px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-content {
+            background: var(--tg-theme-secondary-bg-color, #374151);
+            margin: 20% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: var(--tg-theme-link-color, #06b6d4);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            background: var(--tg-theme-bg-color, rgba(0, 0, 0, 0.3));
+            color: var(--tg-theme-text-color, #e4e4e7);
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--tg-theme-button-color, #8b5cf6);
+            color: var(--tg-theme-button-text-color, white);
+            padding: 12px 24px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1001;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--tg-theme-secondary-bg-color, #374151);
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 Video Randomizer</h1>
+        <div class="subtitle">Генератор параметров для AI видео</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="generateAll()">🎯 Генерировать всё</button>
+        <button class="btn btn-secondary" onclick="clearAll()">🗑️ Очистить</button>
+    </div>
+
+    <div class="categories" id="categoriesGrid"></div>
+
+    <div class="output-section">
+        <h3 class="output-title">📝 Готовый промпт</h3>
+        <div class="prompt-output" id="promptOutput">Выберите параметры...</div>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="btn" onclick="copyPrompt()">📋 Копировать</button>
+        <button class="btn btn-secondary" onclick="sharePrompt()">📤 Поделиться</button>
+    </div>
+
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Добавить параметр</h3>
+            <p style="color: var(--tg-theme-hint-color, #9ca3af); margin-bottom: 12px; font-size: 0.9rem;">
+                <span id="modalCategory"></span>
+            </p>
+            <input type="text" id="customInput" class="modal-input" placeholder="Введите новый параметр...">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn" onclick="addCustomParameter()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        let tg = window.Telegram ? window.Telegram.WebApp : null;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        const baseParameters = {
+            genres: ['Action', 'Comedy', 'Drama', 'Horror', 'Thriller', 'Sci-Fi', 'Fantasy', 'Romance', 'Adventure', 'Mystery', 'Documentary', 'Animation', 'Musical', 'Western', 'Crime', 'Cyberpunk', 'Steampunk'],
+            moods: ['Mysterious', 'Epic', 'Dreamy', 'Tense', 'Peaceful', 'Energetic', 'Melancholic', 'Uplifting', 'Dark', 'Bright', 'Eerie', 'Romantic', 'Dramatic', 'Comedic', 'Surreal', 'Nostalgic'],
+            director_style: ['Stanley Kubrick', 'Quentin Tarantino', 'Wes Anderson', 'Christopher Nolan', 'David Fincher', 'Martin Scorsese', 'Steven Spielberg', 'Ridley Scott', 'James Cameron', 'Alfred Hitchcock', 'Francis Ford Coppola', 'Denis Villeneuve', 'Guillermo del Toro', 'Tim Burton', 'Paul Thomas Anderson', 'Spike Lee', 'Wong Kar-wai', 'Terrence Malick', 'Andrei Tarkovsky', 'Akira Kurosawa', 'Pedro Almodóvar', 'Bong Joon-ho', 'Greta Gerwig', 'Jordan Peele', 'Damien Chazelle'],
+            camera_movements: ['Pan left', 'Pan right', 'Tilt up', 'Tilt down', 'Zoom in', 'Zoom out', 'Dolly forward', 'Tracking shot', 'Arc shot', 'Crane up', 'Handheld', 'Steadicam'],
+            shots_composition: ['Wide shot', 'Medium shot', 'Close-up', 'Extreme close-up', 'Long shot', 'Over-the-shoulder', 'POV', 'Low angle', 'High angle', 'Dutch angle'],
+            lighting: ['High-key', 'Low-key', 'Natural', 'Backlit', 'Side lit', 'Golden hour', 'Blue hour', 'Dramatic', 'Cinematic', 'Moody'],
+            color_grading: ['Teal and orange', 'Monochrome', 'Sepia', 'Black and white', 'Desaturated', 'Warm tones', 'Cool tones', 'High contrast', 'Vintage', 'Modern'],
+            locations: ['Urban cityscape', 'Forest', 'Desert', 'Mountains', 'Beach', 'Space', 'Interior', 'Office', 'Street', 'Park', 'Rooftop', 'Underground'],
+            subjects: ['Person', 'Animal', 'Vehicle', 'Building', 'Nature', 'Robot', 'Alien', 'Crowd', 'Couple', 'Silhouette'],
+            actions: ['Walking', 'Running', 'Dancing', 'Flying', 'Falling', 'Jumping', 'Swimming', 'Driving', 'Talking', 'Fighting', 'Working', 'Transforming'],
+            technical: {
+                aspect_ratios: ['16:9', '9:16', '1:1', '21:9'],
+                quality: ['1080p', '4K', '8K'],
+                duration: ['4 sec', '8 sec', '12 sec', '15 sec'],
+                fps: ['24fps', '30fps', '60fps'],
+                models: ['Sora 2', 'Sora 2 Pro', 'Veo']
+            }
+        };
+
+        const categoryIcons = {
+            genres: '🎭',
+            moods: '🌈',
+            director_style: '🎥',
+            camera_movements: '📹',
+            shots_composition: '🖼️',
+            lighting: '💡',
+            color_grading: '🎨',
+            locations: '🌍',
+            subjects: '👤',
+            actions: '🏃',
+            technical: '⚙️'
+        };
+
+        const categoryNames = {
+            genres: 'Жанры',
+            moods: 'Настроение',
+            director_style: 'Стиль режиссера',
+            camera_movements: 'Камера',
+            shots_composition: 'Планы',
+            lighting: 'Свет',
+            color_grading: 'Цвет',
+            locations: 'Локация',
+            subjects: 'Объект',
+            actions: 'Действие',
+            technical: 'Техника'
+        };
+
+        let currentParameters = {};
+        let customParameters = loadCustomParameters();
+        let currentModalCategory = '';
+
+        function init() {
+            renderCategories();
+            updatePrompt();
+        }
+
+        function loadCustomParameters() {
+            try {
+                const stored = localStorage.getItem('tgVideoRandomizerCustom');
+                return stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveCustomParameters() {
+            localStorage.setItem('tgVideoRandomizerCustom', JSON.stringify(customParameters));
+        }
+
+        function renderCategories() {
+            const grid = document.getElementById('categoriesGrid');
+            grid.innerHTML = '';
+            Object.keys(baseParameters).forEach(category => {
+                grid.appendChild(createCategoryCard(category));
+            });
+        }
+
+        function createCategoryCard(category) {
+            const card = document.createElement('div');
+            card.className = 'category-card';
+            card.innerHTML = `
+                <div class="category-header">
+                    <h3 class="category-title">${categoryIcons[category]} ${categoryNames[category]}</h3>
+                    <div class="category-actions">
+                        <button class="btn btn-small" onclick="generateParameter('${category}')">🎲</button>
+                        <button class="btn btn-small btn-secondary" onclick="openCustomModal('${category}')">➕</button>
+                    </div>
+                </div>
+                <div class="generated-value" id="value-${category}"><span>Нажмите 🎲</span></div>
+                ${renderCustomItems(category)}
+            `;
+            return card;
+        }
+
+        function renderCustomItems(category) {
+            const customs = customParameters[category] || [];
+            if (customs.length === 0) return '';
+            return `
+                <div class="custom-items">
+                    <div class="custom-items-title">Ваши:</div>
+                    ${customs.map((item, index) => `
+                        <div class="custom-item">
+                            <span>${item}</span>
+                            <button class="custom-item-remove" onclick="removeCustomParameter('${category}', ${index})">✕</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function generateParameter(category) {
+            if (category === 'technical') {
+                const tech = baseParameters.technical;
+                const allOptions = {
+                    aspect_ratio: getRandomFromArray(tech.aspect_ratios),
+                    quality: getRandomFromArray(tech.quality),
+                    duration: getRandomFromArray(tech.duration),
+                    fps: getRandomFromArray(tech.fps),
+                    model: getRandomFromArray(tech.models)
+                };
+                currentParameters[category] = allOptions;
+                document.getElementById(`value-${category}`).innerHTML = `
+                    <div style="font-size: 0.85rem;">
+                        <div>${allOptions.aspect_ratio} | ${allOptions.quality}</div>
+                        <div>${allOptions.duration} | ${allOptions.fps}</div>
+                    </div>
+                `;
+            } else {
+                const allOptions = [...(baseParameters[category] || []), ...(customParameters[category] || [])];
+                if (allOptions.length > 0) {
+                    const selected = getRandomFromArray(allOptions);
+                    currentParameters[category] = selected;
+                    document.getElementById(`value-${category}`).innerHTML = `<span>${selected}</span>`;
+                }
+            }
+            updatePrompt();
+            if (tg) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function getRandomFromArray(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function generateAll() {
+            Object.keys(baseParameters).forEach(category => {
+                generateParameter(category);
+            });
+            showToast('Все параметры сгенерированы!');
+            if (tg) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function clearAll() {
+            currentParameters = {};
+            Object.keys(baseParameters).forEach(category => {
+                document.getElementById(`value-${category}`).innerHTML = '<span>Нажмите 🎲</span>';
+            });
+            updatePrompt();
+            showToast('Очищено!');
+        }
+
+        function openCustomModal(category) {
+            currentModalCategory = category;
+            document.getElementById('modalCategory').textContent = categoryNames[category];
+            document.getElementById('customInput').value = '';
+            document.getElementById('customModal').style.display = 'block';
+            setTimeout(() => document.getElementById('customInput').focus(), 100);
+        }
+
+        function closeModal() {
+            document.getElementById('customModal').style.display = 'none';
+        }
+
+        function addCustomParameter() {
+            const value = document.getElementById('customInput').value.trim();
+            if (!value) {
+                showToast('Введите значение!');
+                return;
+            }
+            if (!customParameters[currentModalCategory]) {
+                customParameters[currentModalCategory] = [];
+            }
+            customParameters[currentModalCategory].push(value);
+            saveCustomParameters();
+            renderCategories();
+            closeModal();
+            showToast(`"${value}" добавлен!`);
+            if (tg) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function removeCustomParameter(category, index) {
+            if (customParameters[category]?.[index]) {
+                customParameters[category].splice(index, 1);
+                if (customParameters[category].length === 0) delete customParameters[category];
+                saveCustomParameters();
+                renderCategories();
+                showToast('Удалено!');
+            }
+        }
+
+        function updatePrompt() {
+            document.getElementById('promptOutput').textContent = buildPrompt();
+        }
+
+        function buildPrompt() {
+            if (Object.keys(currentParameters).length === 0) {
+                return 'Выберите параметры для генерации промпта...';
+            }
+            const parts = [];
+
+            // Стиль режиссера добавляется в начало
+            if (currentParameters.director_style) {
+                parts.push(`In the style of ${currentParameters.director_style}`);
+            }
+
+            if (currentParameters.genres && currentParameters.moods) {
+                parts.push(`${currentParameters.genres} ${currentParameters.moods.toLowerCase()} scene`);
+            } else if (currentParameters.genres) {
+                parts.push(`${currentParameters.genres} scene`);
+            } else if (currentParameters.moods) {
+                parts.push(`${currentParameters.moods} scene`);
+            }
+            if (currentParameters.subjects && currentParameters.actions) {
+                parts.push(`featuring ${currentParameters.subjects.toLowerCase()} ${currentParameters.actions.toLowerCase()}`);
+            } else if (currentParameters.subjects) {
+                parts.push(`featuring ${currentParameters.subjects.toLowerCase()}`);
+            }
+            if (currentParameters.locations) {
+                parts.push(`in ${currentParameters.locations.toLowerCase()}`);
+            }
+            const techParts = [];
+            if (currentParameters.camera_movements) techParts.push(currentParameters.camera_movements.toLowerCase());
+            if (currentParameters.shots_composition) techParts.push(currentParameters.shots_composition.toLowerCase());
+            if (currentParameters.lighting) techParts.push(currentParameters.lighting.toLowerCase());
+            if (currentParameters.color_grading) techParts.push(currentParameters.color_grading.toLowerCase());
+            if (techParts.length > 0) parts.push(techParts.join(', '));
+            if (currentParameters.technical) {
+                const tech = currentParameters.technical;
+                parts.push(`Tech: ${tech.aspect_ratio}, ${tech.quality}, ${tech.duration}, ${tech.fps}, shot on ${tech.model}`);
+            }
+            return parts.join('. ') + '.';
+        }
+
+        async function copyPrompt() {
+            const prompt = buildPrompt();
+            try {
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(prompt);
+                } else {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = prompt;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-9999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                }
+                showToast('Скопировано!');
+                if (tg) tg.HapticFeedback.notificationOccurred('success');
+            } catch (err) {
+                showToast('Ошибка копирования');
+            }
+        }
+
+        function sharePrompt() {
+            const prompt = buildPrompt();
+            if (prompt === 'Выберите параметры для генерации промпта...') {
+                showToast('Нет данных!');
+                return;
+            }
+            if (tg) {
+                tg.sendData(JSON.stringify({prompt: prompt, parameters: currentParameters}));
+            } else {
+                copyPrompt();
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        window.addEventListener('click', function(e) {
+            if (e.target === document.getElementById('customModal')) closeModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
